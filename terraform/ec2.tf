@@ -90,3 +90,12 @@ resource "aws_instance" "vm" {
     Name = "${var.project_name}-vm"
   }
 }
+
+resource "aws_eip" "vm" {
+  domain   = "vpc"
+  instance = aws_instance.vm.id
+
+  tags = {
+    Name = "${var.project_name}-eip"
+  }
+}
