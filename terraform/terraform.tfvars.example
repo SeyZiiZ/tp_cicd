@@ -1,0 +1,12 @@
+aws_region        = "eu-west-3"
+project_name      = "tp-cicd"
+ec2_instance_type = "t3.small"
+
+# IMPORTANT : remplace par ton IP publique : curl ifconfig.me
+admin_ssh_cidr = "0.0.0.0/0"
+http_cidr      = "0.0.0.0/0"
+
+# Bonus EKS (coûteux — activer seulement pour la démo/screenshot)
+enable_eks             = false
+eks_node_instance_type = "t3.medium"
+eks_node_desired_size  = 2

@@ -1,0 +1,48 @@
+services:
+  api:
+    build:
+      context: ./app
+    image: tp-cicd-api:local
+    container_name: tp-cicd-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      MONGO_DB: ${MONGO_DB:-tpcicd}
+      MONGO_USER: ${MONGO_USER:-appuser}
+      MONGO_PASSWORD: ${MONGO_PASSWORD:-changeme}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - appnet
+
+  mongo:
+    image: mongo:7
+    container_name: tp-cicd-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-appuser}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:-changeme}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-tpcicd}
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - appnet
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ping:1}).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+volumes:
+  mongo_data:
+
+networks:
+  appnet:
+    driver: bridge

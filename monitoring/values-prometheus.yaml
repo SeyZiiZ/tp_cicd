@@ -1,0 +1,49 @@
+# Valeurs Helm pour kube-prometheus-stack
+# Installation :
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo update
+#   kubectl create namespace monitoring
+#   helm install monitoring prometheus-community/kube-prometheus-stack \
+#     -n monitoring -f monitoring/values-prometheus.yaml
+
+grafana:
+  adminPassword: "changeme-grafana"   # remplacer après install
+  service:
+    type: NodePort
+    nodePort: 31000
+  defaultDashboardsEnabled: true
+  persistence:
+    enabled: false
+
+prometheus:
+  service:
+    type: NodePort
+    nodePort: 31090
+  prometheusSpec:
+    # Découvre automatiquement les ServiceMonitor de tous les namespaces
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    retention: 6h
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 768Mi
+
+alertmanager:
+  enabled: false
+
+# Limite la conso pour tenir sur une petite VM
+kubeStateMetrics:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+
+nodeExporter:
+  resources:
+    requests:
+      cpu: 20m
+      memory: 32Mi
