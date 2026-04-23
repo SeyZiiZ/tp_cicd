@@ -108,31 +108,39 @@ jobs:
           script: |
             set -euo pipefail
             export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-            IMAGE="ghcr.io/${{ github.repository_owner }}/tp-cicd-api:sha-${{ github.sha }}"
 
-            # Crée le namespace + secret une fois (idempotent)
-            kubectl apply -f /home/${{ secrets.EC2_USER }}/app/k8s/namespace.yaml
+            # GHCR exige des noms d'image en minuscules
+            OWNER_LC=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+            ACTOR_LC=$(echo "${{ github.actor }}" | tr '[:upper:]' '[:lower:]')
+            IMAGE="ghcr.io/$OWNER_LC/tp-cicd-api:sha-${{ github.sha }}"
+
+            MANIFESTS_DIR="/home/${{ secrets.EC2_USER }}/app/k8s"
+
+            # Namespace
+            kubectl apply -f "$MANIFESTS_DIR/namespace.yaml"
+
+            # Secrets (idempotents)
             kubectl create secret generic app-secrets -n tp-cicd \
               --from-literal=MONGO_USER='${{ secrets.MONGO_USER }}' \
               --from-literal=MONGO_PASSWORD='${{ secrets.MONGO_PASSWORD }}' \
               --dry-run=client -o yaml | kubectl apply -f -
 
-            # Secret pour pull depuis GHCR
             kubectl create secret docker-registry ghcr-pull -n tp-cicd \
               --docker-server=ghcr.io \
-              --docker-username='${{ github.actor }}' \
+              --docker-username="$ACTOR_LC" \
               --docker-password='${{ secrets.GHCR_PULL_TOKEN }}' \
               --dry-run=client -o yaml | kubectl apply -f -
 
-            # Applique les manifests (hors le deployment que l'on va patcher)
-            kubectl apply -f /home/${{ secrets.EC2_USER }}/app/k8s/configmap.yaml
-            kubectl apply -f /home/${{ secrets.EC2_USER }}/app/k8s/mongo-statefulset.yaml
-            kubectl apply -f /home/${{ secrets.EC2_USER }}/app/k8s/mongo-service.yaml
-            kubectl apply -f /home/${{ secrets.EC2_USER }}/app/k8s/api-deployment.yaml
-            kubectl apply -f /home/${{ secrets.EC2_USER }}/app/k8s/api-service.yaml
-            kubectl apply -f /home/${{ secrets.EC2_USER }}/app/k8s/ingress.yaml
+            # Manifests (api-deployment patché à la volée pour injecter la bonne image dès le 1er apply)
+            kubectl apply -f "$MANIFESTS_DIR/configmap.yaml"
+            kubectl apply -f "$MANIFESTS_DIR/mongo-statefulset.yaml"
+            kubectl apply -f "$MANIFESTS_DIR/mongo-service.yaml"
+            sed "s|ghcr.io/OWNER/tp-cicd-api:latest|$IMAGE|g" "$MANIFESTS_DIR/api-deployment.yaml" \
+              | kubectl apply -f -
+            kubectl apply -f "$MANIFESTS_DIR/api-service.yaml"
+            kubectl apply -f "$MANIFESTS_DIR/ingress.yaml"
 
-            # Attache imagePullSecret + met à jour l'image
+            # Attache imagePullSecret + force l'image (au cas où l'apply n'aurait pas déclenché de rollout)
             kubectl -n tp-cicd patch deployment api \
               -p '{"spec":{"template":{"spec":{"imagePullSecrets":[{"name":"ghcr-pull"}]}}}}'
             kubectl -n tp-cicd set image deployment/api api=$IMAGE
