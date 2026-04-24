@@ -111,27 +111,6 @@ La VM lance automatiquement via `user_data` : Docker, Docker Compose, K3s, kubec
 
 ---
 
-## 3 · Déploiement K8s (manuel, première fois)
-
-```bash
-ssh -i terraform/tp-cicd-key.pem ubuntu@<IP_VM>
-# Sur la VM :
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
-
-sudo kubectl apply -f k8s/namespace.yaml
-sudo kubectl create secret generic app-secrets -n tp-cicd \
-  --from-literal=MONGO_USER=appuser \
-  --from-literal=MONGO_PASSWORD='<mot-de-passe>'
-sudo kubectl apply -f k8s/
-sudo kubectl -n tp-cicd get pods -w
-```
-
-Accès : `http://<IP_VM>/health` (via Traefik Ingress, port 80).
-
-Les déploiements suivants sont automatisés par la CI/CD.
-
----
-
 ## 4 · Pipeline CI/CD (GitHub Actions)
 
 Trigger : `push` sur `main`.
